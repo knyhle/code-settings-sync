@@ -765,7 +765,8 @@ export class Sync {
       "cmd.otherOptions.downloadCustomFile",
       "cmd.otherOptions.joinCommunity",
       "cmd.otherOptions.openIssue",
-      "cmd.otherOptions.releaseNotes"
+      "cmd.otherOptions.releaseNotes",
+      "cmd.otherOptions.toggleSyncMode"
     ].map(localize);
 
     let selectedItem: number = 0;
@@ -970,6 +971,19 @@ export class Sync {
             "http://shanalikhan.github.io/2016/05/14/Visual-studio-code-sync-settings-release-notes.html"
           )
         );
+      },
+      13: async () => {
+        // toggle sync mode
+        customSettings.syncMode = customSettings.syncMode === "gist" ? "git" : "gist";
+        const done: boolean = await common.SetCustomSettings(customSettings);
+        if (done) {
+          const message = customSettings.syncMode === "git"
+            ? "cmd.otherOptions.toggleSyncMode.git"
+            : "cmd.otherOptions.toggleSyncMode.gist"
+          return vscode.window.showInformationMessage(
+            localize(message)
+          );
+        }
       }
     };
 
