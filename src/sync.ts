@@ -8,6 +8,7 @@ import localize from "./localize";
 import * as lockfile from "./lockfile";
 import { File, FileService } from "./service/fileService";
 import { GitHubService } from "./service/githubService";
+import { GitService } from "./service/gitService";
 import { ExtensionInformation, PluginService } from "./service/pluginService";
 import {
   CloudSetting,
@@ -68,6 +69,7 @@ export class Sync {
     const args = arguments;
     const env = new Environment(this.context);
     const common = new Commons(env, this.context);
+    let git: GitService = null;
     let github: GitHubService = null;
     let localConfig: LocalConfig = new LocalConfig();
     const allSettingFiles: File[] = [];
@@ -248,14 +250,34 @@ export class Sync {
         }
 
         try {
-          const created: boolean = await FileService.CreateDirectory(localRepo);
-          if(created) {
-            // New repository
-          } else {
-            // Existing repository. Check if git
+          const createdRepo: boolean = await FileService.CreateDirectory(localRepo);
+          if (createdRepo) console.log("Created new repository at %s", localRepo);
+          else console.log("Already existing repository at %s", localRepo);
+
+          git = new GitService(localRepo);
+          let gitInitPromise: Promise<void> = git.initialize();
+
+          for (const settingFile of allSettingFiles) {
+            console.log("Working: %s with path: %s", settingFile.fileName, settingFile.filePath);
+            const path: string = localRepo + settingFile.fileName;
+            // TODO:
+            // Hack to exclude repo files from being written to itself.
+            // Not a permanent solution as will need to change gist setting too.
+            if (settingFile.filePath !== path) {
+              FileService.WriteFile(path, settingFile.content).then(success => {
+                if(success) console.log("Successfully wrote %s.", path);
+                else console.log("Error. Unsuccessfully wrote %s.", path);
+              });
+            } else {
+              console.log("Ignoring file %s", settingFile.filePath);
+            }
           }
-        } catch (err) {
-          vscode.window.showErrorMessage("failed with code %s", err.code);
+
+          gitInitPromise.then(() => {
+            // Begin adding and commiting files.
+          });
+        } catch (e) {
+          Commons.LogException(null, e.message, true);
           return;
         }
       } else {
