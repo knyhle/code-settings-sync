@@ -29,10 +29,13 @@ export default class Commons {
         message = localize("common.error.canNotSave");
       } else if (error.message) {
         try {
-          message = JSON.parse(error.message).message;
-          if (message.toLowerCase() === "not found") {
+          message = JSON.parse(error.message).message.toLowerCase();
+          if (message === "not found") {
             msgBox = true;
             message = localize("common.error.invalidGistId");
+          } else if (message === "spawn git enoent") {
+            msgBox = true;
+            message = localize("common.error.noGit");
           }
         } catch (error) {
           // message = error.message;
