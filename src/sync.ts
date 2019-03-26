@@ -240,127 +240,130 @@ export class Sync {
       const file: File = new File(fileName, fileContent, "", fileName);
       allSettingFiles.push(file);
 
-      let completed: boolean = false;
-      let newGIST: boolean = false;
-      try {
-        if (syncSetting.gist == null || syncSetting.gist === "") {
-          if (customSettings.askGistName) {
-            customSettings.gistDescription = await common.AskGistName();
-          }
-          newGIST = true;
-          const gistID = await github.CreateEmptyGIST(
-            localConfig.publicGist,
-            customSettings.gistDescription
-          );
-          if (gistID) {
-            syncSetting.gist = gistID;
-            vscode.window.setStatusBarMessage(
-              localize("cmd.updateSettings.info.newGistCreated"),
-              2000
+      if (customSettings.syncMode === "git") {
+      } else {
+        let completed: boolean = false;
+        let newGIST: boolean = false;
+        try {
+          if (syncSetting.gist == null || syncSetting.gist === "") {
+            if (customSettings.askGistName) {
+              customSettings.gistDescription = await common.AskGistName();
+            }
+            newGIST = true;
+            const gistID = await github.CreateEmptyGIST(
+              localConfig.publicGist,
+              customSettings.gistDescription
             );
-          } else {
-            vscode.window.showInformationMessage(
-              localize("cmd.updateSettings.error.newGistCreateFail")
-            );
-            return;
-          }
-        }
-        let gistObj = await github.ReadGist(syncSetting.gist);
-        if (!gistObj) {
-          vscode.window.showErrorMessage(
-            localize("cmd.updateSettings.error.readGistFail", syncSetting.gist)
-          );
-          return;
-        }
-
-        if (gistObj.data.owner !== null) {
-          const gistOwnerName: string = gistObj.data.owner.login.trim();
-          if (github.userName != null) {
-            const userName: string = github.userName.trim();
-            if (gistOwnerName !== userName) {
-              Commons.LogException(
-                null,
-                "Sync : You cant edit GIST for user : " +
-                  gistObj.data.owner.login,
-                true,
-                () => {
-                  console.log("Sync : Current User : " + "'" + userName + "'");
-                  console.log(
-                    "Sync : Gist Owner User : " + "'" + gistOwnerName + "'"
-                  );
-                }
+            if (gistID) {
+              syncSetting.gist = gistID;
+              vscode.window.setStatusBarMessage(
+                localize("cmd.updateSettings.info.newGistCreated"),
+                2000
+              );
+            } else {
+              vscode.window.showInformationMessage(
+                localize("cmd.updateSettings.error.newGistCreateFail")
               );
               return;
             }
           }
-        }
+          let gistObj = await github.ReadGist(syncSetting.gist);
+          if (!gistObj) {
+            vscode.window.showErrorMessage(
+              localize("cmd.updateSettings.error.readGistFail", syncSetting.gist)
+            );
+            return;
+          }
 
-        if (gistObj.public === true) {
-          localConfig.publicGist = true;
-        }
+          if (gistObj.data.owner !== null) {
+            const gistOwnerName: string = gistObj.data.owner.login.trim();
+            if (github.userName != null) {
+              const userName: string = github.userName.trim();
+              if (gistOwnerName !== userName) {
+                Commons.LogException(
+                  null,
+                  "Sync : You cant edit GIST for user : " +
+                    gistObj.data.owner.login,
+                  true,
+                  () => {
+                    console.log("Sync : Current User : " + "'" + userName + "'");
+                    console.log(
+                      "Sync : Gist Owner User : " + "'" + gistOwnerName + "'"
+                    );
+                  }
+                );
+                return;
+              }
+            }
+          }
 
-        vscode.window.setStatusBarMessage(
-          localize("cmd.updateSettings.info.uploadingFile"),
-          3000
-        );
-        gistObj = github.UpdateGIST(gistObj, allSettingFiles);
-        completed = await github.SaveGIST(gistObj.data);
-        if (!completed) {
-          vscode.window.showErrorMessage(
-            localize("cmd.updateSettings.error.gistNotSave")
+          if (gistObj.public === true) {
+            localConfig.publicGist = true;
+          }
+
+          vscode.window.setStatusBarMessage(
+            localize("cmd.updateSettings.info.uploadingFile"),
+            3000
           );
-          return;
-        }
-      } catch (err) {
-        Commons.LogException(err, common.ERROR_MESSAGE, true);
-        return;
-      }
-
-      if (completed) {
-        try {
-          const settingsUpdated = await common.SaveSettings(syncSetting);
-          const customSettingsUpdated = await common.SetCustomSettings(
-            customSettings
-          );
-          if (settingsUpdated && customSettingsUpdated) {
-            if (newGIST) {
-              vscode.window.showInformationMessage(
-                localize(
-                  "cmd.updateSettings.info.uploadingDone",
-                  syncSetting.gist
-                )
-              );
-            }
-
-            if (localConfig.publicGist) {
-              vscode.window.showInformationMessage(
-                localize("cmd.updateSettings.info.shareGist")
-              );
-            }
-
-            if (!syncSetting.quietSync) {
-              common.ShowSummaryOutput(
-                true,
-                allSettingFiles,
-                null,
-                uploadedExtensions,
-                ignoredExtensions,
-                localConfig
-              );
-              vscode.window.setStatusBarMessage("").dispose();
-            } else {
-              vscode.window.setStatusBarMessage("").dispose();
-              vscode.window.setStatusBarMessage(
-                localize("cmd.updateSettings.info.uploadingSuccess"),
-                5000
-              );
-            }
-            if (syncSetting.autoUpload) {
-              common.StartWatch();
-            }
+          gistObj = github.UpdateGIST(gistObj, allSettingFiles);
+          completed = await github.SaveGIST(gistObj.data);
+          if (!completed) {
+            vscode.window.showErrorMessage(
+              localize("cmd.updateSettings.error.gistNotSave")
+            );
+            return;
           }
         } catch (err) {
           Commons.LogException(err, common.ERROR_MESSAGE, true);
+          return;
+        }
+
+        if (completed) {
+          try {
+            const settingsUpdated = await common.SaveSettings(syncSetting);
+            const customSettingsUpdated = await common.SetCustomSettings(
+              customSettings
+            );
+            if (settingsUpdated && customSettingsUpdated) {
+              if (newGIST) {
+                vscode.window.showInformationMessage(
+                  localize(
+                    "cmd.updateSettings.info.uploadingDone",
+                    syncSetting.gist
+                  )
+                );
+              }
+
+              if (localConfig.publicGist) {
+                vscode.window.showInformationMessage(
+                  localize("cmd.updateSettings.info.shareGist")
+                );
+              }
+
+              if (!syncSetting.quietSync) {
+                common.ShowSummaryOutput(
+                  true,
+                  allSettingFiles,
+                  null,
+                  uploadedExtensions,
+                  ignoredExtensions,
+                  localConfig
+                );
+                vscode.window.setStatusBarMessage("").dispose();
+              } else {
+                vscode.window.setStatusBarMessage("").dispose();
+                vscode.window.setStatusBarMessage(
+                  localize("cmd.updateSettings.info.uploadingSuccess"),
+                  5000
+                );
+              }
+              if (syncSetting.autoUpload) {
+                common.StartWatch();
+              }
+            }
+          } catch (err) {
+            Commons.LogException(err, common.ERROR_MESSAGE, true);
+          }
         }
       }
     }
