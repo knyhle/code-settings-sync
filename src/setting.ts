@@ -55,4 +55,5 @@ export class CustomSettings {
   public customFiles: { [key: string]: string } = {};
   public hostName: string = null;
   public syncMode: "gist" | "git" = "gist";
+  public localRepo: string = null;
 }

@@ -241,6 +241,23 @@ export class Sync {
       allSettingFiles.push(file);
 
       if (customSettings.syncMode === "git") {
+        const localRepo: string = customSettings.localRepo || env.FOLDER_GIT;
+        if (!customSettings.localRepo) {
+          vscode.window.showInformationMessage(
+            localize("cmd.updateSettings.info.useDefaultGitFolder"));
+        }
+
+        try {
+          const created: boolean = await FileService.CreateDirectory(localRepo);
+          if(created) {
+            // New repository
+          } else {
+            // Existing repository. Check if git
+          }
+        } catch (err) {
+          vscode.window.showErrorMessage("failed with code %s", err.code);
+          return;
+        }
       } else {
         let completed: boolean = false;
         let newGIST: boolean = false;
