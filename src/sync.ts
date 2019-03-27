@@ -261,43 +261,31 @@ export class Sync {
       allSettingFiles.push(file);
 
       if (customSettings.syncMode === "git") {
-        const localRepo: string = customSettings.localRepo || env.FOLDER_GIT;
         if (!customSettings.localRepo) {
           vscode.window.showInformationMessage(
             localize("cmd.updateSettings.info.useDefaultGitFolder"));
         }
-
+        
+        let initializationPromise: Promise<void>[] = [];
         try {
-          const createdRepo: boolean = await FileService.CreateDirectory(localRepo);
-          if (createdRepo) console.log("Created new repository at %s", localRepo);
-          else console.log("Already existing repository at %s", localRepo);
-
-          git = new GitService(localRepo);
-          let gitInitPromise: Promise<void> = git.initialize();
-
-          for (const settingFile of allSettingFiles) {
-            console.log("Working: %s with path: %s", settingFile.fileName, settingFile.filePath);
-            const path: string = localRepo + settingFile.fileName;
-            // TODO:
-            // Hack to exclude repo files from being written to itself.
-            // Not a permanent solution as will need to change gist setting too.
-            if (settingFile.filePath !== path) {
-              FileService.WriteFile(path, settingFile.content).then(success => {
-                if(success) console.log("Successfully wrote %s.", path);
-                else console.log("Error. Unsuccessfully wrote %s.", path);
-              });
-            } else {
-              console.log("Ignoring file %s", settingFile.filePath);
+          // TODO: Make it more robust
+          // Check if repo already exists or needs to be created.
+          // Determines if any extra initialization needs to be done on the repo.
+          // ex: Cloning, merging, pulling
+          git = new GitService(customSettings.localRepo || env.FOLDER_GIT);
+          git.initialize().then(() => {
+            for (const settingFile of allSettingFiles) {
+              initializationPromise.push(git.addFile(settingFile))
             }
-          }
-
-          gitInitPromise.then(() => {
-            // Begin adding and commiting files.
           });
         } catch (e) {
           Commons.LogException(null, e.message, true);
           return;
         }
+        Promise.all(initializationPromise).then(() => {
+          // Begin commiting files.
+
+        });
       } else {
         let completed: boolean = false;
         let newGIST: boolean = false;
