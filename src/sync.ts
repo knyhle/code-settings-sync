@@ -182,6 +182,18 @@ export class Sync {
             return isMatch;
           });
         }
+
+        // Check if the local git repo is a subdirectory of the user folder and
+        // temporarily add the local repo to the ignoredFolders list if it is.
+        // We don't want to add any of the git files to be marked to be saved
+        // as it would result in the file contents writing to itself or added to the gist.
+        let ignoreLocalRepo: boolean = false;
+        const localRepo = customSettings.localRepo || env.FOLDER_GIT;
+        if (localRepo.indexOf(env.USER_FOLDER) !== -1) {
+          customSettings.ignoreUploadFolders.push(FileService.ExtractFileName(localRepo));
+          ignoreLocalRepo = true;
+        }
+
         if (customSettings.ignoreUploadFolders.length > 0) {
           contentFiles = contentFiles.filter((contentFile: File) => {
             const matchedFolders = customSettings.ignoreUploadFolders.filter(
@@ -192,6 +204,12 @@ export class Sync {
             return matchedFolders.length === 0;
           });
         }
+
+        // Unstage local repository from ignored folders
+        if (ignoreLocalRepo) {
+          customSettings.ignoreUploadFolders.pop();
+        }
+
         const customFileKeys: string[] = Object.keys(
           customSettings.customFiles
         );
