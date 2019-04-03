@@ -165,32 +165,9 @@ export class Sync {
       // var remoteList = ExtensionInformation.fromJSONList(file.content);
       // var deletedList = PluginService.GetDeletedExtensions(uploadedExtensions);
       if (syncSetting.syncExtensions) {
-        uploadedExtensions = PluginService.CreateExtensionList();
-        if (
-          customSettings.ignoreExtensions &&
-          customSettings.ignoreExtensions.length > 0
-        ) {
-          uploadedExtensions = uploadedExtensions.filter(extension => {
-            if (customSettings.ignoreExtensions.includes(extension.name)) {
-              ignoredExtensions.push(extension);
-              return false;
-            }
-            return true;
-          });
-        }
-        uploadedExtensions.sort((a, b) => a.name.localeCompare(b.name));
-        const extensionFileName = env.FILE_EXTENSION_NAME;
-        const extensionFilePath = env.FILE_EXTENSION;
-        const extensionFileContent = JSON.stringify(
-          uploadedExtensions,
-          undefined,
-          2
-        );
-        const extensionFile: File = new File(
-          extensionFileName,
-          extensionFileContent,
-          extensionFilePath,
-          extensionFileName
+        const extensionFile: File = await PluginService.CreateExtensionFile(
+          env,
+          customSettings.ignoreExtensions
         );
         const done: boolean =
           await FileService.WriteFile(extensionFile.filePath, extensionFile.content);

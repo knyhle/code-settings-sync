@@ -8,6 +8,7 @@ import * as util from "../util";
 import Commons from "../commons";
 import localize from "../localize";
 import { Environment } from "../environmentPath";
+import { File } from "./fileService";
 
 const apiPath =
   "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery";
@@ -83,6 +84,43 @@ export class ExtensionMetadata {
 }
 
 export class PluginService {
+  public static async CreateExtensionFile (
+    env: Environment,
+    ignoreExtensions: string[]
+  ): Promise<File> {
+    let uploadedExtensions: ExtensionInformation[] = [];
+    let ignoredExtensions: ExtensionInformation[] = [];
+
+    uploadedExtensions = PluginService.CreateExtensionList();
+    if (
+      ignoreExtensions &&
+      ignoreExtensions.length > 0
+    ) {
+      uploadedExtensions = uploadedExtensions.filter(extension => {
+        if (ignoreExtensions.includes(extension.name)) {
+          ignoredExtensions.push(extension);
+          return false;
+        }
+        return true;
+      });
+    }
+    uploadedExtensions.sort((a, b) => a.name.localeCompare(b.name));
+    const extensionFileName = env.FILE_EXTENSION_NAME;
+    const extensionFilePath = env.FILE_EXTENSION;
+    const extensionFileContent = JSON.stringify(
+      uploadedExtensions,
+      undefined,
+      2
+    );
+    const extensionFile: File = new File(
+      extensionFileName,
+      extensionFileContent,
+      extensionFilePath,
+      extensionFileName
+    );
+    return Promise.resolve(extensionFile);
+  }
+
   public static async UpdateExtensions(
     env: Environment,
     content: string,
