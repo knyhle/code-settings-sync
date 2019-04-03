@@ -2,6 +2,14 @@
 
 import * as fs from "fs-extra";
 import * as path from "path";
+import { Environment } from "../environmentPath";
+import { PluginService } from "./pluginService";
+import * as vscode from 'vscode';
+import localize from "../localize";
+import Commons from "../commons";
+import PragmaUtil from "../pragmaUtil";
+import { OsType } from "../enums";
+import { CustomSettings } from "../setting";
 
 export class File {
   constructor(
@@ -135,6 +143,109 @@ export class FileService {
     }
 
     return files;
+  }
+
+  public static async CreateAllSettingFiles(
+    env: Environment,
+    common: Commons,
+    syncExtensions: boolean,
+    customSettings: CustomSettings,
+  ): Promise<File[]> {
+
+    let allSettingFiles: File[] = [];
+
+    if (syncExtensions) {
+      const extensionFile: File = await PluginService.CreateExtensionFile(
+        env,
+        customSettings.ignoreExtensions
+      );
+      const done: boolean =
+        await FileService.WriteFile(extensionFile.filePath, extensionFile.content);
+      if (!done) {
+        vscode.window.showWarningMessage(
+          localize("cmd.updateSettings.warning.extFileNotSaved")
+        );
+      }
+    }
+    let contentFiles: File[] = [];
+    contentFiles = await FileService.ListFiles(
+      env.USER_FOLDER,
+      0,
+      2,
+      customSettings.supportedFileExtensions
+    );
+
+    const customExist: boolean = await FileService.FileExists(
+      env.FILE_CUSTOMIZEDSETTINGS
+    );
+    if (customExist) {
+      contentFiles = contentFiles.filter(
+        contentFile =>
+          contentFile.fileName !== env.FILE_CUSTOMIZEDSETTINGS_NAME
+      );
+
+      if (customSettings.ignoreUploadFiles.length > 0) {
+        contentFiles = contentFiles.filter(contentFile => {
+          const isMatch: boolean =
+            customSettings.ignoreUploadFiles.indexOf(contentFile.fileName) ===
+              -1 && contentFile.fileName !== env.FILE_CUSTOMIZEDSETTINGS_NAME;
+          return isMatch;
+        });
+      }
+      if (customSettings.ignoreUploadFolders.length > 0) {
+        contentFiles = contentFiles.filter((contentFile: File) => {
+          const matchedFolders = customSettings.ignoreUploadFolders.filter(
+            folder => {
+              return contentFile.filePath.indexOf(folder) !== -1;
+            }
+          );
+          return matchedFolders.length === 0;
+        });
+      }
+      const customFileKeys: string[] = Object.keys(
+        customSettings.customFiles
+      );
+      if (customFileKeys.length > 0) {
+        for (const key of customFileKeys) {
+          const val = customSettings.customFiles[key];
+          const customFile: File = await FileService.GetCustomFile(val, key);
+          if (customFile !== null) {
+            allSettingFiles.push(customFile);
+          }
+        }
+      }
+    } else {
+      Commons.LogException(null, common.ERROR_MESSAGE, true);
+      return;
+    }
+
+    for (const snippetFile of contentFiles) {
+      if (snippetFile.fileName !== env.FILE_KEYBINDING_MAC) {
+        if (snippetFile.content !== "") {
+          if (snippetFile.fileName === env.FILE_KEYBINDING_NAME) {
+            snippetFile.gistName =
+              env.OsType === OsType.Mac
+                ? env.FILE_KEYBINDING_MAC
+                : env.FILE_KEYBINDING_DEFAULT;
+          }
+          allSettingFiles.push(snippetFile);
+        }
+      }
+
+      if (snippetFile.fileName === env.FILE_SETTING_NAME) {
+        try {
+          snippetFile.content = PragmaUtil.processBeforeUpload(
+            snippetFile.content
+          );
+        } catch (e) {
+          Commons.LogException(null, e.message, true);
+          console.error(e);
+          return;
+        }
+      }
+    }
+
+    return Promise.resolve(allSettingFiles);
   }
 
   public static async CreateDirTree(
