@@ -7,12 +7,20 @@ import Commons from "../commons";
 import { LocalConfig } from "../setting";
 import { ExtensionInformation } from "./pluginService";
 
+export class UploadResponse {
+  constructor(
+    public uploadID: string,
+    public localConfig: LocalConfig
+  ) {}
+}
+
 export class DownloadResponse {
   constructor(
     public updatedFiles: File[],
     public addedExtensions: ExtensionInformation[],
     public deletedExtensions: ExtensionInformation[],
-  ){}
+    public localConfig: LocalConfig
+  ) {}
 }
 
 export interface ISyncService {
@@ -22,7 +30,7 @@ export interface ISyncService {
     env: Environment,
     localConfig: LocalConfig,
     globalCommonService: Commons,
-  ): Promise<string>;
+  ): Promise<UploadResponse>;
   download(
     env: Environment,
     localConfig: LocalConfig,
