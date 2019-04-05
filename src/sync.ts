@@ -126,7 +126,6 @@ export class Sync {
 
       const allSettingFiles: AllSettingFiles =
         await globalCommonService.CreateAllSettingFiles(
-          env,
           syncSetting,
           customSettings
       );

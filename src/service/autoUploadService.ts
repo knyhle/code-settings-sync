@@ -18,27 +18,27 @@ export class AutoUploadService {
 
   public watching = false;
 
-  private watcher = watch(this.options.en.USER_FOLDER, {
+  private watcher = watch(this.options.env.USER_FOLDER, {
     depth: 2,
     ignored: this.options.ignored
   });
 
   constructor(
-    private options: { en: Environment; commons: Commons; ignored: string[] }
+    private options: { env: Environment; commons: Commons; ignored: string[] }
   ) {
     vscode.extensions.onDidChange(async () => {
       if (this.watching) {
         console.log("Sync: Extensions changed");
-        if (await lockfile.Check(this.options.en.FILE_SYNC_LOCK)) {
+        if (await lockfile.Check(this.options.env.FILE_SYNC_LOCK)) {
           return;
         } else {
-          await lockfile.Lock(this.options.en.FILE_SYNC_LOCK);
+          await lockfile.Lock(this.options.env.FILE_SYNC_LOCK);
         }
         const customSettings: CustomSettings = await this.options.commons.GetCustomSettings();
         if (customSettings) {
           await this.InitiateAutoUpload();
         }
-        await lockfile.Unlock(this.options.en.FILE_SYNC_LOCK);
+        await lockfile.Unlock(this.options.env.FILE_SYNC_LOCK);
         return;
       }
     });
@@ -52,10 +52,10 @@ export class AutoUploadService {
     this.watcher.addListener("change", async (path: string) => {
       if (this.watching) {
         console.log(`Sync: ${FileService.ExtractFileName(path)} changed`);
-        if (await lockfile.Check(this.options.en.FILE_SYNC_LOCK)) {
+        if (await lockfile.Check(this.options.env.FILE_SYNC_LOCK)) {
           return;
         } else {
-          await lockfile.Lock(this.options.en.FILE_SYNC_LOCK);
+          await lockfile.Lock(this.options.env.FILE_SYNC_LOCK);
         }
 
         const customSettings: CustomSettings = await this.options.commons.GetCustomSettings();
@@ -67,7 +67,7 @@ export class AutoUploadService {
             await this.InitiateAutoUpload();
           }
         }
-        await lockfile.Unlock(this.options.en.FILE_SYNC_LOCK);
+        await lockfile.Unlock(this.options.env.FILE_SYNC_LOCK);
         return;
       }
     });

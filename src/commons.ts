@@ -77,7 +77,7 @@ export default class Commons {
   public ERROR_MESSAGE: string = localize("common.error.message");
 
   constructor(
-    private en: Environment,
+    private env: Environment,
     private context: vscode.ExtensionContext
   ) {
     this.InitializeAutoUpload();
@@ -88,7 +88,7 @@ export default class Commons {
       await this.GetCustomSettings()
     );
     this.autoUploadService = new AutoUploadService({
-      en: this.en,
+      env: this.env,
       commons: this,
       ignored
     });
@@ -141,7 +141,6 @@ export default class Commons {
   }
 
   public async CreateAllSettingFiles(
-    env: Environment,
     syncSetting: ExtensionConfig,
     customSettings: CustomSettings
   ): Promise<AllSettingFiles> {
@@ -157,7 +156,7 @@ export default class Commons {
       );
 
       const extensionFile: File = await PluginService.CreateExtensionFile(
-        env,
+        this.env,
         uploadedExtensions
       );
 
@@ -166,26 +165,26 @@ export default class Commons {
 
     let contentFiles: File[] = [];
     contentFiles = await FileService.ListFiles(
-      env.USER_FOLDER,
+      this.env.USER_FOLDER,
       0,
       2,
       customSettings.supportedFileExtensions
     );
 
     const customExist: boolean = await FileService.FileExists(
-      env.FILE_CUSTOMIZEDSETTINGS
+      this.env.FILE_CUSTOMIZEDSETTINGS
     );
     if (customExist) {
       contentFiles = contentFiles.filter(
         contentFile =>
-          contentFile.fileName !== env.FILE_CUSTOMIZEDSETTINGS_NAME
+          contentFile.fileName !== this.env.FILE_CUSTOMIZEDSETTINGS_NAME
       );
 
       if (customSettings.ignoreUploadFiles.length > 0) {
         contentFiles = contentFiles.filter(contentFile => {
           const isMatch: boolean =
             customSettings.ignoreUploadFiles.indexOf(contentFile.fileName) ===
-              -1 && contentFile.fileName !== env.FILE_CUSTOMIZEDSETTINGS_NAME;
+              -1 && contentFile.fileName !== this.env.FILE_CUSTOMIZEDSETTINGS_NAME;
           return isMatch;
         });
       }
@@ -217,19 +216,19 @@ export default class Commons {
     }
 
     for (const snippetFile of contentFiles) {
-      if (snippetFile.fileName !== env.FILE_KEYBINDING_MAC) {
+      if (snippetFile.fileName !== this.env.FILE_KEYBINDING_MAC) {
         if (snippetFile.content !== "") {
-          if (snippetFile.fileName === env.FILE_KEYBINDING_NAME) {
+          if (snippetFile.fileName === this.env.FILE_KEYBINDING_NAME) {
             snippetFile.gistName =
-              env.OsType === OsType.Mac
-                ? env.FILE_KEYBINDING_MAC
-                : env.FILE_KEYBINDING_DEFAULT;
+              this.env.OsType === OsType.Mac
+                ? this.env.FILE_KEYBINDING_MAC
+                : this.env.FILE_KEYBINDING_DEFAULT;
           }
           files.push(snippetFile);
         }
       }
 
-      if (snippetFile.fileName === env.FILE_SETTING_NAME) {
+      if (snippetFile.fileName === this.env.FILE_SETTING_NAME) {
         try {
           snippetFile.content = PragmaUtil.processBeforeUpload(
             snippetFile.content
@@ -254,11 +253,11 @@ export default class Commons {
     let customSettings: CustomSettings = new CustomSettings();
     try {
       const customExist: boolean = await FileService.FileExists(
-        this.en.FILE_CUSTOMIZEDSETTINGS
+        this.env.FILE_CUSTOMIZEDSETTINGS
       );
       if (customExist) {
         const customSettingStr: string = await FileService.ReadFile(
-          this.en.FILE_CUSTOMIZEDSETTINGS
+          this.env.FILE_CUSTOMIZEDSETTINGS
         );
         const tempObj = JSON.parse(customSettingStr);
 
@@ -270,7 +269,7 @@ export default class Commons {
       Commons.LogException(
         e,
         "Sync : Unable to read " +
-          this.en.FILE_CUSTOMIZEDSETTINGS_NAME +
+          this.env.FILE_CUSTOMIZEDSETTINGS_NAME +
           ". Make sure its Valid JSON.",
         true
       );
@@ -288,14 +287,14 @@ export default class Commons {
   public async SetCustomSettings(setting: CustomSettings): Promise<boolean> {
     try {
       await FileService.WriteFile(
-        this.en.FILE_CUSTOMIZEDSETTINGS,
+        this.env.FILE_CUSTOMIZEDSETTINGS,
         JSON.stringify(setting, null, 4)
       );
       return true;
     } catch (e) {
       Commons.LogException(
         e,
-        "Sync : Unable to write " + this.en.FILE_CUSTOMIZEDSETTINGS_NAME,
+        "Sync : Unable to write " + this.env.FILE_CUSTOMIZEDSETTINGS_NAME,
         true
       );
       return false;
@@ -304,7 +303,7 @@ export default class Commons {
 
   public async StartMigrationProcess(): Promise<boolean> {
     const fileExist: boolean = await FileService.FileExists(
-      this.en.FILE_CUSTOMIZEDSETTINGS
+      this.env.FILE_CUSTOMIZEDSETTINGS
     );
     let customSettings: CustomSettings = null;
     const firstTime: boolean = !fileExist;
