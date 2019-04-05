@@ -4,6 +4,8 @@ import * as GitHubApi from "@octokit/rest";
 import * as HttpsProxyAgent from "https-proxy-agent";
 import * as vscode from "vscode";
 import { File } from "./fileService";
+import { Environment } from "../environmentPath";
+import Commons from "../commons";
 
 interface IEnv {
   [key: string]: string | undefined;
@@ -43,7 +45,12 @@ export class GitHubService {
     }
   };
 
-  constructor(userToken: string, basePath: string) {
+  constructor(
+    public readonly env?: Environment,
+    public readonly globalCommonService?: Commons
+  ) {}
+
+  public async Authenticate(userToken: string, basePath: string) {
     const githubApiConfig: GitHubApi.Options = {};
 
     const proxyURL: string =
@@ -64,9 +71,10 @@ export class GitHubService {
         this.github = new GitHubApi(githubApiConfig);
       } catch (err) {
         console.error(err);
+        throw new Error(err);
       }
 
-      this.github.users
+      await this.github.users
         .getAuthenticated({})
         .then(res => {
           this.userName = res.data.login;
@@ -74,11 +82,14 @@ export class GitHubService {
           console.log(
             "Sync : Connected with user : " + "'" + this.userName + "'"
           );
+          return Promise.resolve(true);
         })
         .catch(err => {
           console.error(err);
+          throw new Error(err);
         });
     }
+    return Promise.resolve(false);
   }
 
   public AddFile(list: File[], GIST_JSON_B: any) {
