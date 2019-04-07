@@ -14,7 +14,7 @@ import {
 } from "./setting";
 
 import { GistSyncService } from "./service/gistSyncService";
-import { DownloadResponse, UploadResponse } from "./service/syncService";
+import { DownloadResponse, UploadResponse, ISyncService } from "./service/syncService";
 import { ExtensionInformation, PluginService } from "./service/pluginService";
 
 let globalCommonService: Commons;
@@ -76,7 +76,7 @@ export class Sync {
     // @ts-ignore
     const args = arguments;
     const env = new Environment(this.context);
-    let gistSync: GistSyncService = null;
+    let syncService: ISyncService = null;
     let localConfig: LocalConfig = new LocalConfig();
     const dateNow = new Date();
     globalCommonService.autoUploadService.StopWatching();
@@ -90,8 +90,8 @@ export class Sync {
         }
       }
 
-      gistSync = new GistSyncService(env, globalCommonService);
-      await gistSync.connect(
+      syncService = new GistSyncService(env, globalCommonService);
+      await syncService.connect(
         localConfig.customConfig.token,
         localConfig.customConfig.githubEnterpriseUrl
       );
@@ -144,7 +144,7 @@ export class Sync {
         await FileService.WriteFile(extensionFile.filePath, extensionFile.content);
       }
 
-      const res: UploadResponse = await gistSync.upload(
+      const res: UploadResponse = await syncService.upload(
         dateNow,
         localConfig
       );
@@ -200,15 +200,15 @@ export class Sync {
    */
   public async download(): Promise<void> {
     const env = new Environment(this.context);
-    let gistSync: GistSyncService = null;
+    let syncService: ISyncService = null;
     let localSettings: LocalConfig = new LocalConfig();
     globalCommonService.autoUploadService.StopWatching();
 
     try {
       localSettings = await globalCommonService.InitalizeSettings(true, true);
 
-      gistSync = new GistSyncService(env, globalCommonService);
-      await gistSync.connect(
+      syncService = new GistSyncService(env, globalCommonService);
+      await syncService.connect(
         localSettings.customConfig.token,
         localSettings.customConfig.githubEnterpriseUrl
       );
@@ -228,7 +228,7 @@ export class Sync {
         2000
       );
 
-      const res: DownloadResponse = await gistSync.download(
+      const res: DownloadResponse = await syncService.download(
         localSettings
       );
 
