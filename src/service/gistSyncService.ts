@@ -16,6 +16,11 @@ import { GitHubService } from "./githubService";
 import { ExtensionInformation, PluginService } from "./pluginService";
 import { DownloadResponse, ISyncService, UploadResponse } from "./syncService";
 
+interface IGist {
+  cloudSetting: CloudSetting;
+  files: File[];
+}
+
 export class GistSyncService extends GitHubService implements ISyncService {
   public async connect(token: string, baseUrl: string): Promise<boolean> {
     return this.Authenticate(token, baseUrl);
@@ -119,6 +124,76 @@ export class GistSyncService extends GitHubService implements ISyncService {
     );
 
     return Promise.resolve(response);
+  }
+
+  public async ValidFile(file: {
+    fileName: string;
+    content: any;
+  }): Promise<boolean> {
+    if (!file || !file.content) {
+      return false;
+    }
+    switch (file.fileName) {
+      case this.env.FILE_KEYBINDING_MAC:
+        return this.env.OsType === OsType.Mac;
+      case this.env.FILE_KEYBINDING_DEFAULT:
+        return this.env.OsType !== OsType.Mac;
+      case this.env.FILE_CLOUDSETTINGS_NAME:
+        return false;
+    }
+    return true;
+  }
+
+  public async ParseFile(
+    file: { fileName: string; content: any },
+    customFiles: { [name: string]: string }
+  ): Promise<File> {
+    const prefix: string = FileService.CUSTOMIZED_SYNC_PREFIX;
+    let filePath: string = null;
+    if (file.fileName.indexOf(prefix) > -1) {
+      const name: string = file.fileName.split(prefix).join("");
+      if (!(name in customFiles)) {
+        return null;
+      }
+      filePath = customFiles[file.fileName];
+    } else if (file.fileName.indexOf(".") === -1) {
+      return null;
+    }
+
+    const resFile: File = new File(
+      file.fileName,
+      file.content,
+      filePath,
+      file.fileName
+    );
+    return Promise.resolve(resFile);
+  }
+
+  public async ParseResponse(
+    res: any,
+    customFiles: { [name: string]: string }
+  ): Promise<IGist> {
+    let files: File[] = [];
+    let cloudSetting: CloudSetting = null;
+
+    console.log("res in parse response");
+    console.log(res);
+
+    const keys = Object.keys(res.data.files);
+    if (keys.indexOf(this.env.FILE_CLOUDSETTINGS_NAME) > -1) {
+      const cloudSettGist: object = JSON.parse(
+        res.data.files[this.env.FILE_CLOUDSETTINGS_NAME].content
+      );
+      cloudSetting = Object.assign(new CloudSetting(), cloudSettGist);
+    }
+    const filteredFiles: any[] = await res.data.files.filter(this.ValidFile);
+    const parsePromise: Array<Promise<File>> = [];
+    for (const file of filteredFiles) {
+      parsePromise.push(this.ParseFile(file, customFiles));
+    }
+    files = await Promise.all(parsePromise);
+
+    return { cloudSetting, files } as IGist;
   }
 
   public async download(localConfig: LocalConfig): Promise<DownloadResponse> {
@@ -230,6 +305,14 @@ export class GistSyncService extends GitHubService implements ISyncService {
       }
     });
 
+    const parsedRes: IGist = await this.ParseResponse(
+      res,
+      customSettings.customFiles
+    );
+    for (const file of parsedRes.files) {
+      console.log("me file in parsedres files is ", file.fileName);
+    }
+
     for (const file of updatedFiles) {
       let writeFile: boolean = false;
       let content: string = file.content;
@@ -285,6 +368,8 @@ export class GistSyncService extends GitHubService implements ISyncService {
                 localConfig.customConfig.hostName
               );
             }
+
+            console.log("Writing file: ", file.filePath);
 
             actionList.push(
               FileService.WriteFile(filePath, content)
